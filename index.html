@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 부산정보산업진흥원 지원사업 예산 대시보드</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS CDN (for Excel & CSV parsing and export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand-section">
+        <div class="brand-logo">📊</div>
+        <div>
+          <h1 class="brand-title">2026 지원사업 예산 분석 대시보드</h1>
+          <p class="brand-subtitle">부산정보산업진흥원 주요지원사업 대분류·중분류·소분류·부서별 통합 분석 시스템</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnResetSample" class="btn btn-outline">
+          <span>🔄</span> 샘플 데이터 리셋
+        </button>
+        <button id="btnDownloadTemplate" class="btn btn-outline">
+          <span>📥</span> 양식 다운로드
+        </button>
+      </div>
+    </header>
+
+    <!-- File Upload Area -->
+    <section class="upload-card">
+      <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" style="display: none;">
+      <div id="dropZone" class="upload-area">
+        <div class="upload-icon">📂</div>
+        <div class="upload-text-main">클릭하거나 엑셀 또는 CSV 파일을 이곳에 드래그하세요</div>
+        <div class="upload-text-sub">지원 형식: .xlsx, .xls, .csv (예산자료.csv 및 표준 서식 자동 인식)</div>
+        <div id="fileInfoBadge" class="current-file-badge">
+          <span>✓</span> 기본 데이터 로드됨 (59개 사업)
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter Section -->
+    <section class="filter-card">
+      <div class="filter-header">
+        <div class="filter-title">
+          <span>⚡</span> 조건별 세부 필터링
+        </div>
+        <div id="filterStatusBadge" class="filter-status">전체 59개 사업 표시 중</div>
+      </div>
+      <div class="filter-grid">
+        <div class="filter-group">
+          <label class="filter-label" for="filterMajor">● 1. 대분류</label>
+          <select id="filterMajor" class="filter-select">
+            <option value="">전체 (대분류)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterMid">● 2. 중분류</label>
+          <select id="filterMid" class="filter-select">
+            <option value="">전체 (중분류)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterSub">● 3. 소분류</label>
+          <select id="filterSub" class="filter-select">
+            <option value="">전체 (소분류)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="filterDept">● 4. 담당 부서</label>
+          <select id="filterDept" class="filter-select">
+            <option value="">전체 (담당 부서)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label" for="searchKeyword">🔍 통합 키워드 검색</label>
+          <input type="text" id="searchKeyword" class="search-input" placeholder="사업명, 개요, 소관부서 검색...">
+        </div>
+        <div class="filter-group">
+          <button id="btnClearFilter" class="btn btn-outline" style="height: 38px;">
+            <span>↺</span> 필터 초기화
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI Summary Section -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">조회된 지원사업 수</span>
+          <div class="kpi-icon kpi-icon-blue">📋</div>
+        </div>
+        <div id="kpiCount" class="kpi-value">59<span style="font-size: 16px; font-weight: 600;">건</span></div>
+        <div id="kpiCountSub" class="kpi-subtext">전체 59개 중 100% 조회 중</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">총 예산 규모 (백만원)</span>
+          <div class="kpi-icon kpi-icon-green">💰</div>
+        </div>
+        <div id="kpiBudget" class="kpi-value">54,970.0</div>
+        <div id="kpiBudgetSub" class="kpi-subtext">약 549.7 억원 규모</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">재원 구성 요약</span>
+          <div class="kpi-icon kpi-icon-purple">🏛️</div>
+        </div>
+        <div id="kpiSources" class="kpi-value" style="font-size: 20px;">
+          시비 <span id="kpiSibiRatio" style="color: var(--primary);">0%</span> / 국비 <span id="kpiGukbiRatio" style="color: var(--success);">0%</span>
+        </div>
+        <div class="budget-bar">
+          <div id="barCity" class="bar-city" style="width: 50%;"></div>
+          <div id="barNat" class="bar-nat" style="width: 30%;"></div>
+          <div id="barOther" class="bar-other" style="width: 20%;"></div>
+        </div>
+        <div class="budget-legend">
+          <span><span class="legend-dot bar-city"></span>시비</span>
+          <span><span class="legend-dot bar-nat"></span>국비</span>
+          <span><span class="legend-dot bar-other"></span>기타/민자</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-label">참여 부서 및 전략 분야</span>
+          <div class="kpi-icon kpi-icon-amber">🏢</div>
+        </div>
+        <div id="kpiDeptAndField" class="kpi-value">
+          <span id="kpiDeptCount">7</span><span style="font-size: 16px; font-weight: 600;">개 부서</span> · 
+          <span id="kpiFieldCount">4</span><span style="font-size: 16px; font-weight: 600;">개 분야</span>
+        </div>
+        <div id="kpiDeptSub" class="kpi-subtext">주요 부서: 인공지능소프트웨어과 등</div>
+      </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="chart-title"><span>📌</span> 4대 전략분야별 예산 배분</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chartCategory"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="chart-title"><span>🎯</span> 재원별 구성 비율</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chartSource"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="chart-title"><span>🏛️</span> 부서별 예산 규모 순위</h3>
+        </div>
+        <div class="chart-body">
+          <canvas id="chartDept"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table Section -->
+    <section class="table-card">
+      <div class="table-header">
+        <div class="table-title-group">
+          <h3 class="table-title">사업 목록 상세 데이터</h3>
+          <span id="tableCountBadge" class="table-count-badge">조회 결과 59개</span>
+        </div>
+        <div class="table-controls">
+          <select id="pageSizeSelect" class="filter-select" style="width: auto; padding: 6px 10px;">
+            <option value="10">10개씩 보기</option>
+            <option value="20" selected>20개씩 보기</option>
+            <option value="50">50개씩 보기</option>
+            <option value="9999">전체 보기</option>
+          </select>
+          <button id="btnExportExcel" class="btn btn-primary btn-sm">
+            <span>📊</span> 엑셀 다운로드
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sortable text-center" data-sort="id" style="width: 60px;">번호 ↕</th>
+              <th class="sortable" data-sort="categoryMajor">대분류 ↕</th>
+              <th class="sortable" data-sort="categorySub">소분류 ↕</th>
+              <th class="sortable" data-sort="dept">담당부서 ↕</th>
+              <th class="sortable" data-sort="name" style="min-width: 200px;">사업명 ↕</th>
+              <th style="min-width: 250px;">주요 지원 내용</th>
+              <th class="sortable text-right" data-sort="budgetTotal">총예산(백만원) ↕</th>
+              <th class="sortable text-right" data-sort="budgetSibi">시비 ↕</th>
+              <th class="sortable text-right" data-sort="budgetGukbi">국비 ↕</th>
+              <th class="text-center" style="width: 80px;">유형</th>
+              <th class="text-center" style="width: 70px;">상세</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Dynamic Table Rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-container">
+        <div id="pageInfo" class="page-info">1 - 20 / 전체 59개</div>
+        <div id="pagination" class="pagination">
+          <!-- Dynamic Page Buttons -->
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <span id="modalCategoryBadge" class="badge badge-global" style="margin-bottom: 6px;">글로벌 선도</span>
+          <h2 id="modalProjectName" class="modal-title">사업명</h2>
+        </div>
+        <button id="btnModalClose" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">소관 부서 / 담당부서</div>
+            <div id="modalDept" class="detail-value">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">중분류 / 전략과제</div>
+            <div id="modalMid" class="detail-value">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">소분류 / 기술분야</div>
+            <div id="modalSub" class="detail-value">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">사업 유형 / 지원기능</div>
+            <div id="modalType" class="detail-value">-</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">총 사업비 (2026년)</div>
+            <div id="modalTotalBudget" class="detail-value" style="color: var(--primary); font-size: 16px;">- 백만원</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">재원 구성 (국비 / 시비 / 민자)</div>
+            <div id="modalBudgetBreakdown" class="detail-value">-</div>
+          </div>
+        </div>
+
+        <div class="detail-box">
+          <div class="detail-box-title">📋 재원 내역 상세</div>
+          <div id="modalBudgetDetail" style="font-size: 13px; color: #334155;">-</div>
+        </div>
+
+        <div class="detail-box">
+          <div class="detail-box-title">📌 주요 지원 내용 및 개요</div>
+          <ul id="modalSummaryList" class="summary-list">
+            <!-- Dynamic Summary Items -->
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnModalCloseBottom" class="btn btn-outline">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
